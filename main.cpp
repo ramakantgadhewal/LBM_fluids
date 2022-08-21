@@ -360,8 +360,10 @@ int main(){
 
 
     std::cout << "DOMAIN SIZE: " << NX << " X " << NY << std::endl;
-    std::cout << "MAX VELOCITY IN X DIRECTION: " << ux[scalar_index(0, 20)] << " m/s" << std::endl;
-    std::cout << "MAX VELOCITY IN X DIRECTION (Analytical): " << ux_star[scalar_index(0, 20)] << " m/s" << std::endl;
+    std::cout << "NUMBER OF ITERATIONS: " << NSTEPS << std::endl;
+    std::cout << "MAX VELOCITY IN 'X' DIRECTION: " << ux[scalar_index(0, 20)] << " m/s" << std::endl;
+    std::cout << "MAX VELOCITY IN 'X' DIRECTION (Analytical): " << ux_star[scalar_index(0, 20)] << " m/s" << std::endl;
+    std::cout << "BOUNDARY CONDITIONS USED: Half-way Bounce-back for walls, Periodic for inlet and outlet" << std::endl;
 
 
     //std :: cout << f[field_index(5, 6, 5)] << std:: endl;
