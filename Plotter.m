@@ -1,6 +1,6 @@
 clear all;
 load Ux940.txt
-Nx = 40;
+Nx = 70;
 Ny = 40;
 
 x = 1:Nx;
