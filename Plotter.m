@@ -1,5 +1,5 @@
 clear all;
-load Ux20000.txt
+load Ux940.txt
 Nx = 40;
 Ny = 40;
 
@@ -9,6 +9,6 @@ y = 1:Ny;
 [X,Y] = meshgrid(x,y);
 
 figure("Name", "mainC")
-contourf(X,Y,Ux20000);
+contourf(X,Y,Ux940, 16);
 
 %ux-main0.txt

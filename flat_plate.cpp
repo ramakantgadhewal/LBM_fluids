@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <iostream>
 #include <stdlib.h>
@@ -41,13 +40,20 @@ const double u_max = 0.02;
 const double rho0 = 1.0;    //Initial density
 const double mu = rho0*nu;
 
+
 //Number of timesteps
-const unsigned int NSTEPS = 20000;
+const unsigned int NSTEPS = 940;
 const unsigned int NSAVE  =  50;
 
 
 //For Poseuille's flow
 const double dpdx = 1.0e-3;
+
+
+//Define problem parameters for flow past cylinder simulation
+double u_inlet = 0.04;
+double rho_out = 1.0;
+
 
 int field_index(int x, int y, int d){
     
@@ -84,6 +90,7 @@ void taylor_green(int t, double *rho, double *ux, double *uy){
         }
     }
 }
+
 
 void poiseuille_flowAnalytical(double *ux){
 
@@ -146,23 +153,35 @@ void init_Geo(double *geo){
                 geo[scalar_index(x, y)] = 1;
             }
 
+            else if(x == 0){
+
+                geo[scalar_index(x, y)] = 8;
+
+            }
+
+            else if(x == NX-1){
+
+                geo[scalar_index(x, y)] = 9;
+
+            }
+
             else{
                 //Fluid nodes are labelled as 0
                 geo[scalar_index(x, y)] = 0;
             }
 
-            //std::cout << geo[scalar_index(x,y)];
+            std::cout << geo[scalar_index(x,y)];
             
         }
 
-        //std::cout << std::endl;
+        std::cout << std::endl;
 
         
     }
 }
 
 
-void compute_rho_u(double *f, double *r, double *u, double *v){
+void compute_rho_u(double *f, double *r, double *u, double *v, double *geo){
 
     for(int y = 0; y < NY; ++y){
 
@@ -171,17 +190,17 @@ void compute_rho_u(double *f, double *r, double *u, double *v){
             double rho = 0.0;
             double ux  = 0.0;
             double uy  = 0.0;
-            
-            for(unsigned int i = 0; i < ndir; ++i)
-            {
+
+            for(unsigned int i = 0; i < ndir; ++i) {
                 rho += f[field_index(x,y,i)];
-                //std::cout << rho << std::endl;
                 ux  += dirx[i]*f[field_index(x,y,i)];
                 uy  += diry[i]*f[field_index(x,y,i)];
 
             }
+            
 
-            ux += dpdx/2;   //Add this term for poseuille flow (pressure difference)
+
+            //ux += dpdx/2;   //Add this term for poseuille flow (pressure difference)
             
             r[scalar_index(x,y)] = rho;
             u[scalar_index(x,y)] = ux/rho;
@@ -194,13 +213,13 @@ void compute_rho_u(double *f, double *r, double *u, double *v){
 }
 
 
-
 void collison(double *f, double *r, double *u, double *v, double *source, double *feq, double *ft){
 
     double omtau = (1 - (1/tau)); 
 
     for(int x = 0; x<NX; x++){
         for(int y = 0; y<NY; y++){
+
             double ux = u[scalar_index(x, y)];
             double uy = v[scalar_index(x, y)];
             double rho = r[scalar_index(x, y)];
@@ -212,10 +231,10 @@ void collison(double *f, double *r, double *u, double *v, double *source, double
                 double t1 = ux*dirx[i] + uy*diry[i];
                 double t2 = t1*t1;
 
-                source[i] = (1 - 0.5/tau)*wi[i]*(3*(dirx[i] - ux) + 9*(t1)*dirx[i])*dpdx;   //Added for Poseuille flow (External force)
+                //source[i] = (1 - 0.5/tau)*wi[i]*(3*(dirx[i] - ux) + 9*(t1)*dirx[i])*dpdx;   //Added for Poseuille flow (External force)
 
                 feq[i] = wi[i]*rho*(1 + 3*t1 + 4.5*t2 - 1.5*u2);
-                ft[field_index(x, y, i)] = f[field_index(x, y, i)]*omtau  + feq[i]*tauinv + source[i];
+                ft[field_index(x, y, i)] = f[field_index(x, y, i)]*omtau  + feq[i]*tauinv ; //+ source[i];
 
                 
             }
@@ -238,15 +257,16 @@ void stream(double *f, double *ft){
 
                 unsigned int xmd = (NX+x+dirx[i])%NX;
                 unsigned int ymd = (NY+y+diry[i])%NY;
-                
+
+
                 f[field_index(xmd,ymd,i)] = ft[field_index(x,y,i)];
+
+            
                 
             }
         }
     }
 }
-
-
 
 
 void mid_bounce_back(double *geo, double *f, double *ft, double *f_wall){
@@ -275,6 +295,59 @@ void mid_bounce_back(double *geo, double *f, double *ft, double *f_wall){
     }
 }
 
+
+void zou_inlet(double *geo, double *f, double *ft, double *rho, double u_inlet){
+
+    for(int x = 0; x<NX; x++){
+        for(int y = 0; y<NY; y++){
+            
+            if(geo[scalar_index(x, y)] == 8){
+
+                double rhod = (1/(1-u_inlet))*(f[field_index(x, y, 0)] + f[field_index(x, y, 2)] + f[field_index(x, y, 4)] + 2*(f[field_index(x, y, 3)] + f[field_index(x, y, 6)] + f[field_index(x, y, 7)]));
+
+                f[field_index(x, y, 1)] = f[field_index(x, y, 3)] + (2.0/3.0)*rhod*u_inlet;
+                f[field_index(x, y, 5)] = f[field_index(x, y, 7)] - (1.0/2.0)*(f[field_index(x, y, 2)] - f[field_index(x, y, 4)]) + (1.0/6.0)*rhod*u_inlet;
+                f[field_index(x, y, 8)] = f[field_index(x, y, 6)] + (1.0/2.0)*(f[field_index(x, y, 2)] - f[field_index(x, y, 4)]) + (1.0/6.0)*rhod*u_inlet;
+
+            }
+        }
+    }
+}
+
+
+void zou_outlet(double *geo, double *f, double *ft, double *rho, double u_inlet){
+
+    for(int x = 0; x<NX; x++){
+        for(int y = 0; y<NY; y++){
+            if(geo[scalar_index(x, y)] == 9){
+
+                double ux = 1 - ((2*(f[field_index(x, y, 1)] + f[field_index(x, y, 1)] + f[field_index(x, y, 1)]) + f[field_index(x, y, 0)] + f[field_index(x, y, 2)] + f[field_index(x, y, 4)])/rho_out);
+
+                f[field_index(x, y, 3)] = f[field_index(x, y, 1)] - (2.0/3.0)*rho_out*ux;
+                f[field_index(x, y, 7)] = f[field_index(x, y, 5)] + (1.0/2.0)*(f[field_index(x, y, 2)] - f[field_index(x, y, 4)]) - (1.0/6.0)*rho_out*ux;
+                f[field_index(x, y, 6)] = f[field_index(x, y, 8)] - (1.0/2.0)*(f[field_index(x, y, 2)] - f[field_index(x, y, 4)]) - (1.0/6.0)*rho_out*ux;
+
+            }
+        }
+    }
+}
+
+
+void outflow(double *geo, double *f, double *ft){
+
+    for(int x = 0; x<NX; x++){
+        for(int y = 0; y < NY; y++){
+            if(geo[scalar_index(x, y)] == 9){
+
+                f[field_index(x, y, 3)] = f[field_index(x-1, y, 3)];
+                f[field_index(x, y, 6)] = f[field_index(x-1, y, 6)];
+                f[field_index(x, y, 7)] = f[field_index(x-1, y, 7)];
+
+
+            }
+        }
+    }
+}
 
 
 void save_scalar(const char *name, double *scalar, unsigned int n)
@@ -308,7 +381,6 @@ void save_scalar(const char *name, double *scalar, unsigned int n)
 
 
 
-
 int main(){
 
     //Allocate memory
@@ -338,14 +410,19 @@ int main(){
     init_Geo(geo);
     //save_scalar("geo", geo, 0);
 
+
     //Time loop
     for(int i = 0; i<NSTEPS; i++){
 
-        compute_rho_u(f, rho, ux, uy);
+        compute_rho_u(f, rho, ux, uy, geo);
         
         collison(f, rho, ux, uy, source, feq, ft);
 
         stream(f, ft);
+
+        zou_inlet(geo, f, ft, rho, u_inlet);
+        //zou_outlet(geo, f, ft, rho, u_inlet);
+        outflow(geo, f, ft);
 
         mid_bounce_back(geo, f, ft, f_wall);
 
@@ -355,14 +432,15 @@ int main(){
     //Save results
     save_scalar("Ux", ux, NSTEPS);
     save_scalar("Uy", uy, NSTEPS);
+    //std:: cout << rho[scalar_index(39, 8)] << std::endl;
     //save_scalar("Ux", ux, NSTEPS);
 
 
     std::cout << "DOMAIN SIZE: " << NX << " X " << NY << std::endl;
     std::cout << "NUMBER OF ITERATIONS: " << NSTEPS << std::endl;
-    std::cout << "MAX VELOCITY IN 'X' DIRECTION: " << ux[scalar_index(0, 20)] << " m/s" << std::endl;
-    std::cout << "MAX VELOCITY IN 'X' DIRECTION (Analytical): " << ux_star[scalar_index(0, 20)] << " m/s" << std::endl;
-    std::cout << "BOUNDARY CONDITIONS USED: Half-way Bounce-back for walls, Periodic for inlet and outlet" << std::endl;
+    //std::cout << "MAX VELOCITY IN 'X' DIRECTION: " << ux[scalar_index(0, 20)] << " m/s" << std::endl;
+    //std::cout << "MAX VELOCITY IN 'X' DIRECTION (Analytical): " << ux_star[scalar_index(0, 20)] << " m/s" << std::endl;
+    //std::cout << "BOUNDARY CONDITIONS USED: Half-way Bounce-back for walls, Periodic for inlet and outlet" << std::endl;
 
 
 
