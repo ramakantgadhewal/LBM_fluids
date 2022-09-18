@@ -6,9 +6,10 @@
 
 //using namespace std;
 
+
 //Domain size
-const int NX = 70;
-const int NY = 40;
+const int NX = 200;
+const int NY = 120;
 
 //Initialize weights
 const double w0 = 4.0/9.0;  // zero weight
@@ -31,7 +32,7 @@ const int diry[] = {0,0,1, 0,-1,1, 1,-1,-1};
 const int opposite[] = {0, 3, 4, 1, 2, 7, 8, 5, 6}; //For storing opposite directions used in bounce back
 
 //const double nu = 1.0/6.0;
-const double tau = 0.6;
+const double tau = 0.55;
 const double nu = (tau - 0.5)/3;
 double tauinv = 1/tau;
 const double u_max = 0.02;
@@ -42,8 +43,8 @@ const double mu = rho0*nu;
 
 
 //Number of timesteps
-const unsigned int NSTEPS = 940;
-const unsigned int NSAVE  =  50;
+const unsigned int NSTEPS = 3000;
+const unsigned int NSAVE  =  2;
 
 
 //For Poseuille's flow
@@ -51,11 +52,16 @@ const double dpdx = 1.0e-3;
 
 
 //Define problem parameters for flow past cylinder simulation
-double u_inlet = 0.08;
+
+double Re = 100;
+//Inlet = 15D => NY/30 = cylinder Radius
+int cylinderRadius = NY / 30;
+double Lc = 2*cylinderRadius;
+double u_inlet = Re*nu/Lc;
 double rho_out = 1.0;
-int Xc = NX / 3;
+int Xc = NX / 5;
 int Yc = NY / 2;
-int cylinderRadius = NY / 5;
+
 
 
 
@@ -79,24 +85,6 @@ double distance(int x, int y)
     return dist;
 }
 
-
-void poiseuille_flowAnalytical(double *ux){
-
-    double velConst = -(dpdx)/(2*mu);
-
-    //printf("%lf", velConst);
-
-    for(int x = 0; x < NX; x++){
-
-        for(int y = 0; y < NY; y++){
-
-            int r = y - NY + 1;
-            ux[scalar_index(x, y)] = velConst*(y)*r;
-
-        }
-
-    }
-}
 
 
 //Initialization function used for Poseuille's flow
@@ -153,7 +141,7 @@ void init_Geo(double *geo){
 
             }
 
-            else if (distance(x, y) < cylinderRadius) {
+            else if (distance(x, y) <= cylinderRadius) {
                 geo[scalar_index(x, y)] = 4;
             }
             
@@ -174,7 +162,7 @@ void init_Geo(double *geo){
 }
 
 
-void compute_rho_u(double *f, double *r, double *u, double *v, double *geo){
+void compute_rho_u(double *f, double *r, double *u, double *v, double *geo, double *v_net){
 
     for(int y = 0; y < NY; ++y){
 
@@ -199,6 +187,11 @@ void compute_rho_u(double *f, double *r, double *u, double *v, double *geo){
             u[scalar_index(x,y)] = ux/rho;
             v[scalar_index(x,y)] = uy/rho;
 
+            double u2 = (u[scalar_index(x, y)])*(u[scalar_index(x, y)]);
+            double v2 = (v[scalar_index(x, y)])*(v[scalar_index(x, y)]);
+
+            v_net[scalar_index(x, y)] = sqrt(u2 + v2);
+
             //std::cout << ux << std :: endl;
 
         }
@@ -206,7 +199,7 @@ void compute_rho_u(double *f, double *r, double *u, double *v, double *geo){
 }
 
 
-void collison(double *f, double *r, double *u, double *v, double *source, double *feq, double *ft){
+void collison(double *f, double *r, double *u, double *v, double *feq, double *ft){
 
     double omtau = (1 - (1/tau)); 
 
@@ -262,7 +255,7 @@ void stream(double *f, double *ft){
 }
 
 
-void mid_bounce_back(double *geo, double *f, double *ft, double *f_wall){
+void mid_bounce_back(double *geo, double *f, double *ft){
 
     for(int y = 0; y<NY; y++){
         for(int x = 0; x<NX; x++){
@@ -380,27 +373,26 @@ int main(){
     //Allocate memory
 
     double *f  = (double*) malloc(sizeof(double)*NX*NY*ndir);
-    double *f_wall  = (double*) malloc(sizeof(double)*NX*2*ndir);
+    //double *f_wall  = (double*) malloc(sizeof(double)*NX*2*ndir);
     double *geo = (double*) malloc(sizeof(double)*NX*NY);
     double *ux  = (double*) malloc(sizeof(double)*NX*NY);
     double *uy  = (double*) malloc(sizeof(double)*NX*NY);
     double *rho  = (double*) malloc(sizeof(double)*NX*NY);
-    double *source  = (double*) malloc(sizeof(double)*ndir);
+    //double *source  = (double*) malloc(sizeof(double)*ndir);
     double *feq  = (double*) malloc(sizeof(double)*ndir);
     double *ft  = (double*) malloc(sizeof(double)*NX*NY*ndir);
-    double *ux_star  = (double*) malloc(sizeof(double)*NX*NY);
+    //double *ux_star  = (double*) malloc(sizeof(double)*NX*NY);
+    double *v_net  = (double*) malloc(sizeof(double)*NX*NY);
     //double *uy_star  = (double*) malloc(sizeof(double)*NX*NY);
     //double *rho_star  = (double*) malloc(sizeof(double)*NX*NY);
 
-    std::cout << "-----SIMULATING POSEUILLE FLOW-----" << std::endl;
+    std::cout << "-----SIMULATING FLOW PAST CYLINDER-----" << std::endl;
 
 
-    poiseuille_flowAnalytical(ux_star);
-    save_scalar("UxTrial", ux_star, 0);
     //taylor_green(0, rho, ux, uy);
     //Initialization functions
     init_distribution(f, rho, ux, uy);
-    init_wall_distribution(f_wall);
+    //init_wall_distribution(f_wall);
     init_Geo(geo);
     //save_scalar("geo", geo, 0);
 
@@ -408,9 +400,15 @@ int main(){
     //Time loop
     for(int i = 0; i<NSTEPS; i++){
 
-        compute_rho_u(f, rho, ux, uy, geo);
+        compute_rho_u(f, rho, ux, uy, geo, v_net);
+
+        if(((i+1)%NSAVE == 0) && (i >= 2000)) {
+
+            save_scalar("VNet", v_net, i+1);
         
-        collison(f, rho, ux, uy, source, feq, ft);
+        }
+        
+        collison(f, rho, ux, uy,feq, ft);
 
         stream(f, ft);
 
@@ -418,22 +416,22 @@ int main(){
         //zou_outlet(geo, f, ft, rho, u_inlet);
         outflow(geo, f, ft);
 
-        mid_bounce_back(geo, f, ft, f_wall);
+        mid_bounce_back(geo, f, ft);
 
     }
 
     
     //Save results
-    save_scalar("Ux", ux, NSTEPS);
-    save_scalar("Uy", uy, NSTEPS);
-    //std:: cout << rho[scalar_index(39, 8)] << std::endl;
     //save_scalar("Ux", ux, NSTEPS);
+    //save_scalar("Uy", uy, NSTEPS);
+    //std:: cout << rho[scalar_index(39, 8)] << std::endl;
+    save_scalar("VNet", v_net, NSTEPS);
 
 
     std::cout << "DOMAIN SIZE: " << NX << " X " << NY << std::endl;
     std::cout << "NUMBER OF ITERATIONS: " << NSTEPS << std::endl;
-    //std::cout << "MAX VELOCITY IN 'X' DIRECTION: " << ux[scalar_index(0, 20)] << " m/s" << std::endl;
-    //std::cout << "MAX VELOCITY IN 'X' DIRECTION (Analytical): " << ux_star[scalar_index(0, 20)] << " m/s" << std::endl;
+    std::cout << "REYNOLDS NUMBER: " << Re << std::endl;
+    std::cout << "INLET VELOCITY: " << u_inlet << " m/s" << std::endl;
     //std::cout << "BOUNDARY CONDITIONS USED: Half-way Bounce-back for walls, Periodic for inlet and outlet" << std::endl;
 
 

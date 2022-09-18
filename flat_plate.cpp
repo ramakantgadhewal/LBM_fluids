@@ -7,7 +7,7 @@
 //using namespace std;
 
 //Domain size
-const int NX = 40;
+const int NX = 150;
 const int NY = 40;
 
 //Initialize weights
@@ -269,7 +269,7 @@ void stream(double *f, double *ft){
 }
 
 
-void mid_bounce_back(double *geo, double *f, double *ft, double *f_wall){
+void mid_bounce_back(double *geo, double *f, double *ft){
 
     for(int y = 0; y<NY; y++){
         for(int x = 0; x<NX; x++){
@@ -386,7 +386,7 @@ int main(){
     //Allocate memory
 
     double *f  = (double*) malloc(sizeof(double)*NX*NY*ndir);
-    double *f_wall  = (double*) malloc(sizeof(double)*NX*2*ndir);
+    //double *f_wall  = (double*) malloc(sizeof(double)*NX*2*ndir);
     double *geo = (double*) malloc(sizeof(double)*NX*NY);
     double *ux  = (double*) malloc(sizeof(double)*NX*NY);
     double *uy  = (double*) malloc(sizeof(double)*NX*NY);
@@ -394,19 +394,19 @@ int main(){
     double *source  = (double*) malloc(sizeof(double)*ndir);
     double *feq  = (double*) malloc(sizeof(double)*ndir);
     double *ft  = (double*) malloc(sizeof(double)*NX*NY*ndir);
-    double *ux_star  = (double*) malloc(sizeof(double)*NX*NY);
+    //double *ux_star  = (double*) malloc(sizeof(double)*NX*NY);
     //double *uy_star  = (double*) malloc(sizeof(double)*NX*NY);
     //double *rho_star  = (double*) malloc(sizeof(double)*NX*NY);
 
     std::cout << "-----SIMULATING POSEUILLE FLOW-----" << std::endl;
 
 
-    poiseuille_flowAnalytical(ux_star);
-    save_scalar("UxTrial", ux_star, 0);
+    //poiseuille_flowAnalytical(ux_star);
+    //save_scalar("UxTrial", ux_star, 0);
     //taylor_green(0, rho, ux, uy);
     //Initialization functions
     init_distribution(f, rho, ux, uy);
-    init_wall_distribution(f_wall);
+    //init_wall_distribution(f_wall);
     init_Geo(geo);
     //save_scalar("geo", geo, 0);
 
@@ -424,7 +424,7 @@ int main(){
         //zou_outlet(geo, f, ft, rho, u_inlet);
         outflow(geo, f, ft);
 
-        mid_bounce_back(geo, f, ft, f_wall);
+        mid_bounce_back(geo, f, ft);
 
     }
 
