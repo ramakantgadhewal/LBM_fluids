@@ -6,6 +6,14 @@ fnames = {fileinfo.name};
 numFiles = numel(fnames);
 %}
 
+load Cd0000.txt
+
+figure()
+
+NSTEPS = 1:1:length(Cd0000);
+
+plot(NSTEPS, Cd0000); 
+
 files = dir('*.txt');
 fnames = {files.name};
 

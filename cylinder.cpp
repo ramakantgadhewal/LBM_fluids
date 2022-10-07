@@ -43,7 +43,7 @@ const double mu = rho0*nu;
 
 
 //Number of timesteps
-const unsigned int NSTEPS = 3000;
+const unsigned int NSTEPS = 5000;
 const unsigned int NSAVE  =  2;
 
 
@@ -151,11 +151,11 @@ void init_Geo(double *geo){
                 geo[scalar_index(x, y)] = 0;
             }
 
-            std::cout << geo[scalar_index(x,y)];
+            //std::cout << geo[scalar_index(x,y)];
             
         }
 
-        std::cout << std::endl;
+        //std::cout << std::endl;
 
         
     }
@@ -283,6 +283,51 @@ void mid_bounce_back(double *geo, double *f, double *ft){
 }
 
 
+void compute_forces(double *geo, double *f, double *ft, double *r, double *v_net, double *Cd, int i){
+
+    double px, py, cd, cl;
+
+    for(int y = 0; y<NY; y++){
+        for(int x = 0; x<NX; x++){
+
+            if(geo[scalar_index(x, y)] == 0){
+                //Check for fluid nodes
+
+                for(int i = 0; i<ndir; i++){
+
+                    int xmd = x + dirx[i];
+                    int ymd = y + diry[i];
+
+                    if(geo[scalar_index(xmd, ymd)] == 4){
+                        //If adjacent node is on wall
+
+                        //double px, py;
+
+                        px += f[field_index(x, y, i)]*dirx[i] - f[field_index(x, y, i)]*dirx[opposite[i]];
+                        py += f[field_index(x, y, i)]*diry[i] - f[field_index(x, y, i)]*diry[opposite[i]];
+
+                        //double v_net2 = v_net[scalar_index(x, y)]*v_net[scalar_index(x, y)];
+
+                    
+                    }
+
+                }
+            }
+        }
+    }
+
+
+    cd = (px)/(0.5*rho0*(2*cylinderRadius)*u_inlet*u_inlet);
+    cl = (py)/(0.5*rho0*(2*cylinderRadius)*u_inlet*u_inlet);
+    //std::cout << "DRAG COEFFICIENT :  "<< cd << std::endl;
+    //std::cout << "LIFT COEFFICIENT :  "<< cl << std::endl;
+
+    //Cd[i] = cd;
+    Cd[i] = cd;
+
+}
+
+
 void zou_inlet(double *geo, double *f, double *ft, double *rho, double u_inlet){
 
     for(int x = 0; x<NX; x++){
@@ -366,6 +411,31 @@ void save_scalar(const char *name, double *scalar, unsigned int n)
 }
 
 
+void save_scalar_linear(const char *name, double *scalar, unsigned int n)
+{
+    const size_t mem_size_scalar = sizeof(double) * NX * NY;
+
+    // assume reasonably-sized file names
+    char filename[128];
+    char format[16];
+
+    // compute maximum number of digits
+    int ndigits = floor(log10((double)NSTEPS) + 1.0);
+
+    // file name format is name0000nnn.bin
+    sprintf(format, "%%s%%0%dd.txt", ndigits);
+    sprintf(filename, format, name, n); 
+
+    FILE *output = fopen(filename, "w");
+    for (int y = 0; y < NSTEPS; y++)
+    {
+        fprintf(output, "%.10f\t", scalar[y]);
+         
+    }
+    fclose(output);
+}
+
+
 
 
 int main(){
@@ -383,6 +453,8 @@ int main(){
     double *ft  = (double*) malloc(sizeof(double)*NX*NY*ndir);
     //double *ux_star  = (double*) malloc(sizeof(double)*NX*NY);
     double *v_net  = (double*) malloc(sizeof(double)*NX*NY);
+    double *Cd  = (double*) malloc(sizeof(double)*NSTEPS);
+    //double *Cl  = (double*) malloc(sizeof(double)*NSTEPS);
     //double *uy_star  = (double*) malloc(sizeof(double)*NX*NY);
     //double *rho_star  = (double*) malloc(sizeof(double)*NX*NY);
 
@@ -402,11 +474,11 @@ int main(){
 
         compute_rho_u(f, rho, ux, uy, geo, v_net);
 
-        if(((i+1)%NSAVE == 0) && (i >= 2000)) {
+        /*if(((i+1)%NSAVE == 0) && (i >= 2000)) {
 
             save_scalar("VNet", v_net, i+1);
         
-        }
+        }*/
         
         collison(f, rho, ux, uy,feq, ft);
 
@@ -414,11 +486,24 @@ int main(){
 
         zou_inlet(geo, f, ft, rho, u_inlet);
         //zou_outlet(geo, f, ft, rho, u_inlet);
+        
         outflow(geo, f, ft);
 
         mid_bounce_back(geo, f, ft);
 
+        compute_forces(geo, f, ft, rho, v_net, Cd, i);
+
+        if(i >= 1800) {
+
+            save_scalar_linear("Cd", Cd, 0);
+        
+        }
+
+
     }
+
+
+    //compute_forces(geo, f, ft, rho, v_net);
 
     
     //Save results
@@ -432,6 +517,7 @@ int main(){
     std::cout << "NUMBER OF ITERATIONS: " << NSTEPS << std::endl;
     std::cout << "REYNOLDS NUMBER: " << Re << std::endl;
     std::cout << "INLET VELOCITY: " << u_inlet << " m/s" << std::endl;
+    //std::cout << "# # # # # # # # # # # # # # # # # # # #" << std::endl;
     //std::cout << "BOUNDARY CONDITIONS USED: Half-way Bounce-back for walls, Periodic for inlet and outlet" << std::endl;
 
 
@@ -440,3 +526,54 @@ int main(){
 
 
 }
+
+
+/*
+
+   % momentum exchange
+    net_del_Px = 2*sum(repmat(cx,length(fluid_boundaryNodes),1).*((f(:,fluid_boundaryNodes)').*lat_sol_nodes_fluidNodeNe_logical),2);
+    net_del_Py = 2*sum(repmat(cy,length(fluid_boundaryNodes),1).*((f(:,fluid_boundaryNodes)').*lat_sol_nodes_fluidNodeNe_logical),2);
+
+%     neigh_x = repmat(cx,length(boundarySolidNodes),1);
+%     neighxindicator_x = neigh_x.*nodeNe_boundarySolidNodes_logical;
+%     P_x = 2*neighxindicator_x.*f(:,boundarySolidNodes)';
+%     net_del_Px = sum(P_x,2);
+%     
+%     neigh_y = repmat(cy,length(boundarySolidNodes),1);
+%     neighxindicator_y = neigh_y.*nodeNe_boundarySolidNodes_logical;
+%     P_y = 2*neighxindicator_y.*f(:,boundarySolidNodes)';
+%     net_del_Py = sum(P_y,2);
+    
+    
+
+    % forces in x,y
+    Fx = [Fx,sum(net_del_Px)];
+    Fy = [Fy,sum(net_del_Py)];
+    
+    % conversion of u_star to u and v_star to v
+    u = u_star*delx/delt;
+    v = v_star*delx/delt;
+    
+    % pressure calculation
+    p_star = cs_star^2*rho_star;
+    
+    % pressure conversion
+    p = p_star*rho_phy*delx^2/delt^2;
+    toc
+    
+    % force conversion
+    Fx_phy = Fx*rho_phy*delx^4/delt^2;
+    Fy_phy = Fy*rho_phy*delx^4/delt^2;
+    
+    % drag and lift coef
+%     cd = 2*Fx_phy/((u0^2)*rho_phy*d);
+%     cl = 2*Fy_phy/((u0^2)*rho_phy*d);
+
+    cd = 2*Fx_phy/((((Uave_star*delx/delt)^2)*rho_phy*d_star*delx));
+    cl = 2*Fy_phy/((((Uave_star*delx/delt)^2)*rho_phy*d_star*delx));
+
+
+
+
+
+*/
