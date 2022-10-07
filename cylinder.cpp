@@ -35,7 +35,7 @@ const int opposite[] = {0, 3, 4, 1, 2, 7, 8, 5, 6}; //For storing opposite direc
 const double tau = 0.55;
 const double nu = (tau - 0.5)/3;
 double tauinv = 1/tau;
-const double u_max = 0.02;
+//const double u_max = 0.02;
 
 
 const double rho0 = 1.0;    //Initial density
