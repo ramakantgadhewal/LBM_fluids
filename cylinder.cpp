@@ -43,7 +43,7 @@ const double mu = rho0*nu;
 
 
 //Number of timesteps
-const unsigned int NSTEPS = 5000;
+const unsigned int NSTEPS = 2000;
 const unsigned int NSAVE  =  2;
 
 
@@ -55,7 +55,7 @@ const double dpdx = 1.0e-3;
 
 double Re = 100;
 //Inlet = 15D => NY/30 = cylinder Radius
-int cylinderRadius = NY / 30;
+int cylinderRadius = NY/30;
 double Lc = 2*cylinderRadius;
 double u_inlet = Re*nu/Lc;
 double rho_out = 1.0;
@@ -287,6 +287,16 @@ void compute_forces(double *geo, double *f, double *ft, double *r, double *v_net
 
     double px, py, cd, cl;
 
+
+    float delta_x = 0.025; //in  'm'
+    float delta_t = 6.25e-05; // in 's'
+    //double px_real = (px);
+    double rho_real = 1.2; //air density
+    double Lc_real = 0.2; // in 'm'
+    double V_real = u_inlet*(delta_x/delta_t);
+    double V_real2 = V_real*V_real;
+
+
     for(int y = 0; y<NY; y++){
         for(int x = 0; x<NX; x++){
 
@@ -303,8 +313,8 @@ void compute_forces(double *geo, double *f, double *ft, double *r, double *v_net
 
                         //double px, py;
 
-                        px += f[field_index(x, y, i)]*dirx[i] - f[field_index(x, y, i)]*dirx[opposite[i]];
-                        py += f[field_index(x, y, i)]*diry[i] - f[field_index(x, y, i)]*diry[opposite[i]];
+                        px += (f[field_index(x, y, i)]*dirx[i] - f[field_index(x, y, i)]*dirx[opposite[i]]);
+                        py += (f[field_index(x, y, i)]*diry[i] - f[field_index(x, y, i)]*diry[opposite[i]]);
 
                         //double v_net2 = v_net[scalar_index(x, y)]*v_net[scalar_index(x, y)];
 
@@ -317,8 +327,9 @@ void compute_forces(double *geo, double *f, double *ft, double *r, double *v_net
     }
 
 
-    cd = (px)/(0.5*rho0*(2*cylinderRadius)*u_inlet*u_inlet);
-    cl = (py)/(0.5*rho0*(2*cylinderRadius)*u_inlet*u_inlet);
+
+    cd = (px)*(pow(delta_x, 3)/pow(delta_t, 2))/(0.5*rho0*Lc_real*V_real2);
+    //cl = (px_real)/(0.5*rho_real*Lc_real*V_real2);
     //std::cout << "DRAG COEFFICIENT :  "<< cd << std::endl;
     //std::cout << "LIFT COEFFICIENT :  "<< cl << std::endl;
 
@@ -474,11 +485,11 @@ int main(){
 
         compute_rho_u(f, rho, ux, uy, geo, v_net);
 
-        /*if(((i+1)%NSAVE == 0) && (i >= 2000)) {
+        if(((i+1)%NSAVE == 0) && (i >= 2000)) {
 
             save_scalar("VNet", v_net, i+1);
         
-        }*/
+        }
         
         collison(f, rho, ux, uy,feq, ft);
 

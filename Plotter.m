@@ -30,7 +30,7 @@ figure("Name", "mainC")
 for i = 1:1:length(files)
     
     V = load(files(i).name, '-ascii');
-    contourf(X,Y, V, 12);
+    contourf(X, Y, V, 12);
     pause(0.01);
 
     
