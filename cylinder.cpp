@@ -8,8 +8,8 @@
 
 
 //Domain size
-const int NX = 200;
-const int NY = 120;
+const int NX = 600;
+const int NY = 320;
 
 //Initialize weights
 const double w0 = 4.0/9.0;  // zero weight
@@ -43,7 +43,7 @@ const double mu = rho0*nu;
 
 
 //Number of timesteps
-const unsigned int NSTEPS = 2000;
+const unsigned int NSTEPS = 7000;
 const unsigned int NSAVE  =  2;
 
 
@@ -55,7 +55,7 @@ const double dpdx = 1.0e-3;
 
 double Re = 100;
 //Inlet = 15D => NY/30 = cylinder Radius
-int cylinderRadius = NY/30;
+int cylinderRadius = 16;
 double Lc = 2*cylinderRadius;
 double u_inlet = Re*nu/Lc;
 double rho_out = 1.0;
@@ -124,6 +124,10 @@ void init_wall_distribution(double *f_wall){
 void init_Geo(double *geo){
     for(int y = 0; y<NY; y++){
         for(int x = 0; x<NX; x++){
+
+            double x1 = (x-Xc);
+            double y1 = (y-Yc);
+
             if(y == 0 || y == NY-1){
                 //Boundary nodes are labelled as 1
                 geo[scalar_index(x, y)] = 1;
@@ -141,7 +145,7 @@ void init_Geo(double *geo){
 
             }
 
-            else if (distance(x, y) <= cylinderRadius) {
+            else if (distance(x,y) <= cylinderRadius) {
                 geo[scalar_index(x, y)] = 4;
             }
             
@@ -159,6 +163,7 @@ void init_Geo(double *geo){
 
         
     }
+
 }
 
 
@@ -288,8 +293,8 @@ void compute_forces(double *geo, double *f, double *ft, double *r, double *v_net
     double px, py, cd, cl;
 
 
-    float delta_x = 0.025; //in  'm'
-    float delta_t = 6.25e-05; // in 's'
+    float delta_x = 0.1/cylinderRadius; //in  'm'
+    float delta_t = (delta_x*delta_x)*0.1; // in 's'
     //double px_real = (px);
     double rho_real = 1.2; //air density
     double Lc_real = 0.2; // in 'm'
@@ -485,7 +490,7 @@ int main(){
 
         compute_rho_u(f, rho, ux, uy, geo, v_net);
 
-        if(((i+1)%NSAVE == 0) && (i >= 2000)) {
+        if(((i+1)%NSAVE == 0) && (i >= 10500)) {
 
             save_scalar("VNet", v_net, i+1);
         
@@ -504,7 +509,7 @@ int main(){
 
         compute_forces(geo, f, ft, rho, v_net, Cd, i);
 
-        if(i >= 1800) {
+        if(i >= 2000) {
 
             save_scalar_linear("Cd", Cd, 0);
         
@@ -522,6 +527,7 @@ int main(){
     //save_scalar("Uy", uy, NSTEPS);
     //std:: cout << rho[scalar_index(39, 8)] << std::endl;
     save_scalar("VNet", v_net, NSTEPS);
+    save_scalar("Geo", geo, 0);
 
 
     std::cout << "DOMAIN SIZE: " << NX << " X " << NY << std::endl;
@@ -539,7 +545,9 @@ int main(){
 }
 
 
+
 /*
+
 
    % momentum exchange
     net_del_Px = 2*sum(repmat(cx,length(fluid_boundaryNodes),1).*((f(:,fluid_boundaryNodes)').*lat_sol_nodes_fluidNodeNe_logical),2);
@@ -580,8 +588,12 @@ int main(){
 %     cd = 2*Fx_phy/((u0^2)*rho_phy*d);
 %     cl = 2*Fy_phy/((u0^2)*rho_phy*d);
 
+
+
+
     cd = 2*Fx_phy/((((Uave_star*delx/delt)^2)*rho_phy*d_star*delx));
     cl = 2*Fy_phy/((((Uave_star*delx/delt)^2)*rho_phy*d_star*delx));
+
 
 
 
